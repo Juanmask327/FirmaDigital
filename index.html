@@ -257,7 +257,7 @@ function goStep2() {
   setTimeout(initCanvas, 60);
 }
 
-async function submitSignature() {
+function submitSignature() {
   const err2 = document.getElementById('err2');
   if (!hasSigned) { err2.classList.add('visible'); return; }
   err2.classList.remove('visible');
@@ -273,12 +273,20 @@ async function submitSignature() {
     timestamp:  new Date().toISOString()
   };
   try {
-    const formData = new FormData();
-    formData.append('data', JSON.stringify(payload));
-    await fetch(APPS_SCRIPT_URL, {
-      method: 'POST', mode: 'no-cors',
-      body: formData
-    });
+    // Enviar con formulario oculto (única forma confiable con Apps Script + no-cors)
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = APPS_SCRIPT_URL;
+    form.target = 'hidden_iframe';
+    form.style.display = 'none';
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'data';
+    input.value = JSON.stringify(payload);
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
   } catch (_) {}
   document.getElementById('dot2').classList.replace('active', 'done');
   document.getElementById('dot3').classList.add('active');
@@ -287,5 +295,6 @@ async function submitSignature() {
   document.getElementById('step3').classList.add('active');
 }
 </script>
+<iframe name="hidden_iframe" style="display:none"></iframe>
 </body>
 </html>
