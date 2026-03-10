@@ -150,7 +150,7 @@
 
 <script>
 // ─── CONFIG — reemplaza con tu URL real del Apps Script ───────────────────
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwHcGHU-wHOUuDmxWYOgqlEc7BvpQji49wJYdg-TgGDdrO3wJuph6fanZ9Abw2_TzuS9Q/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCMxRNBicxWSXBVyhGK5VyxpwdgwCqQXwL8Jc25anYjb-_DybVvb4cuuBVoHy4Qba9sA/exec";
 // ─────────────────────────────────────────────────────────────────────────
 
 const canvas = document.getElementById('sigCanvas');
@@ -273,10 +273,11 @@ async function submitSignature() {
     timestamp:  new Date().toISOString()
   };
   try {
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(payload));
     await fetch(APPS_SCRIPT_URL, {
       method: 'POST', mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: formData
     });
   } catch (_) {}
   document.getElementById('dot2').classList.replace('active', 'done');
