@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Firma Digital — Acta de Coformación</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --paper: #f5f0e8;
+    --accent: #2d6a4f;
+    --accent-light: #52b788;
+    --warn: #c9184a;
+    --border: #c8b89a;
+    --shadow: rgba(26,26,46,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(82,183,136,0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(45,106,79,0.06) 0%, transparent 50%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+
+  .card {
+    background: #fffef9;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    box-shadow: 0 2px 4px var(--shadow), 0 12px 40px var(--shadow);
+    width: 100%;
+    max-width: 560px;
+    padding: 3rem 2.5rem;
+    position: relative;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .header .seal {
+    width: 52px; height: 52px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.2rem;
+    font-size: 1.5rem;
+  }
+
+  .header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    color: var(--ink);
+    font-weight: 600;
+    line-height: 1.3;
+    margin-bottom: 0.4rem;
+  }
+
+  .header p {
+    font-size: 0.85rem;
+    color: #6b7280;
+    font-weight: 300;
+    letter-spacing: 0.01em;
+  }
+
+  /* Steps */
+  .step { display: none; }
+  .step.active { display: block; }
+
+  .step-indicator {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+  .dot.active { background: var(--accent); }
+  .dot.done { background: var(--accent-light); }
+
+  /* Form fields */
+  label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: 0.4rem;
+  }
+
+  input[type="text"], input[type="email"], select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: #fafaf7;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 1.2rem;
+    appearance: none;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(45,106,79,0.12);
+    background: #fff;
+  }
+
+  .field-group { margin-bottom: 0.2rem; }
+
+  /* Signature canvas */
+  .sig-label {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: var(--ink);
+    margin-bottom: 0.8rem;
+    font-weight: 400;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    border: 1.5px solid var(--border);
+    border-radius: 2px;
+    background: #fff;
+    overflow: hidden;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 200px;
+  }
+
+  .canvas-hint {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Playfair Display', serif;
+    font-size: 0.95rem;
+    color: #c8b89a;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    text-align: center;
+  }
+
+  .baseline {
+    position: absolute;
+    bottom: 40px; left: 5%; right: 5%;
+    height: 1px;
+    background: rgba(200,184,154,0.5);
+    pointer-events: none;
+  }
+
+  .sig-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.6rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-clear {
+    background: none;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 0.3rem 0.6rem;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .btn-clear:hover { color: var(--warn); }
+
+  /* Buttons */
+  .btn {
+    width: 100%;
+    padding: 0.9rem;
+    border: none;
+    border-radius: 2px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-primary:hover { background: #1b4332; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; transform: none; }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 2rem;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light));
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  /* Success screen */
+  .success-icon {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: #d1fae5;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-size: 1.8rem;
+  }
+
+  .success-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    color: var(--ink);
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .success-sub {
+    font-size: 0.9rem;
+    color: #6b7280;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.5rem 0;
+  }
+
+  /* Error */
+  .error-msg {
+    color: var(--warn);
+    font-size: 0.8rem;
+    margin-top: -1rem;
+    margin-bottom: 1rem;
+    display: none;
+  }
+  .error-msg.visible { display: block; }
+
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .role-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: #d1fae5;
+    color: var(--accent);
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="header">
+    <div class="seal">✍️</div>
+    <h1>Firma Digital</h1>
+    <p>Acta de Coformación del Estudiante</p>
+  </div>
+
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width: 33%"></div>
+  </div>
+
+  <div class="step-indicator">
+    <div class="dot active" id="dot1"></div>
+    <div class="dot" id="dot2"></div>
+    <div class="dot" id="dot3"></div>
+  </div>
+
+  <!-- STEP 1: Identificación -->
+  <div class="step active" id="step1">
+    <div class="field-group">
+      <label>Tu rol</label>
+      <select id="rol">
+        <option value="">Selecciona tu rol…</option>
+        <option value="estudiante">Estudiante</option>
+        <option value="tutor">Tutor de empresa</option>
+        <option value="profesor">Profesor acompañante</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label>Nombre completo</label>
+      <input type="text" id="nombre" placeholder="Ej: María García López" />
+    </div>
+    <div class="field-group">
+      <label>Correo electrónico</label>
+      <input type="email" id="correo" placeholder="tu@correo.com" />
+    </div>
+    <div class="field-group">
+      <label>Código de acta</label>
+      <input type="text" id="codigoActa" placeholder="Ingresa el código recibido por correo" />
+      <p class="error-msg" id="err1">Por favor completa todos los campos.</p>
+    </div>
+    <button class="btn btn-primary" onclick="goStep2()">Continuar →</button>
+  </div>
+
+  <!-- STEP 2: Firma -->
+  <div class="step" id="step2">
+    <div id="roleBadge" class="role-badge"></div>
+    <p class="sig-label">Dibuja tu firma en el recuadro</p>
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="sigCanvas"></canvas>
+      <div class="canvas-hint" id="canvasHint">Firma aquí</div>
+      <div class="baseline"></div>
+    </div>
+    <div class="sig-actions">
+      <button class="btn-clear" onclick="clearCanvas()">✕ Borrar y volver a firmar</button>
+    </div>
+    <p class="error-msg" id="err2">Por favor dibuja tu firma antes de continuar.</p>
+    <button class="btn btn-primary" id="btnEnviar" onclick="submitSignature()">Confirmar y enviar firma</button>
+  </div>
+
+  <!-- STEP 3: Éxito -->
+  <div class="step" id="step3">
+    <div class="success-icon">✅</div>
+    <p class="success-title">Firma registrada</p>
+    <hr class="divider">
+    <p class="success-sub">
+      Tu firma ha sido guardada correctamente.<br><br>
+      Recibirás el acta completa por correo electrónico una vez que <strong>todos los participantes</strong> hayan firmado.
+    </p>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ─────────────────────────────────────────────────────────────────
+// Reemplaza este valor con tu Google Apps Script Web App URL
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/TU_SCRIPT_ID_AQUI/exec";
+// ─────────────────────────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('sigCanvas');
+const ctx = canvas.getContext('2d');
+let isDrawing = false;
+let hasSigned = false;
+let lastX = 0, lastY = 0;
+
+// Setup canvas resolution
+function resizeCanvas() {
+  const wrap = document.getElementById('canvasWrap');
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = wrap.clientWidth * ratio;
+  canvas.height = 200 * ratio;
+  ctx.scale(ratio, ratio);
+  ctx.strokeStyle = '#1a1a2e';
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+
+resizeCanvas();
+window.addEventListener('resize', () => { if (!hasSigned) resizeCanvas(); });
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return {
+    x: (src.clientX - rect.left),
+    y: (src.clientY - rect.top)
+  };
+}
+
+canvas.addEventListener('mousedown', e => { isDrawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; });
+canvas.addEventListener('mousemove', e => {
+  if (!isDrawing) return;
+  const p = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  lastX = p.x; lastY = p.y;
+  hasSigned = true;
+  document.getElementById('canvasHint').style.opacity = '0';
+});
+canvas.addEventListener('mouseup', () => isDrawing = false);
+canvas.addEventListener('mouseleave', () => isDrawing = false);
+
+canvas.addEventListener('touchstart', e => { e.preventDefault(); isDrawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!isDrawing) return;
+  const p = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  lastX = p.x; lastY = p.y;
+  hasSigned = true;
+  document.getElementById('canvasHint').style.opacity = '0';
+});
+canvas.addEventListener('touchend', () => isDrawing = false);
+
+function clearCanvas() {
+  const ratio = window.devicePixelRatio || 1;
+  ctx.clearRect(0, 0, canvas.width / ratio, canvas.height / ratio);
+  hasSigned = false;
+  document.getElementById('canvasHint').style.opacity = '1';
+}
+
+function goStep2() {
+  const rol = document.getElementById('rol').value;
+  const nombre = document.getElementById('nombre').value.trim();
+  const correo = document.getElementById('correo').value.trim();
+  const codigo = document.getElementById('codigoActa').value.trim();
+  const err = document.getElementById('err1');
+
+  if (!rol || !nombre || !correo || !codigo) {
+    err.classList.add('visible'); return;
+  }
+  err.classList.remove('visible');
+
+  const labels = { estudiante: 'Estudiante', tutor: 'Tutor de Empresa', profesor: 'Profesor Acompañante' };
+  document.getElementById('roleBadge').textContent = labels[rol];
+
+  // Update indicators
+  document.getElementById('dot1').classList.remove('active');
+  document.getElementById('dot1').classList.add('done');
+  document.getElementById('dot2').classList.add('active');
+  document.getElementById('progressFill').style.width = '66%';
+
+  document.getElementById('step1').classList.remove('active');
+  document.getElementById('step2').classList.add('active');
+}
+
+async function submitSignature() {
+  const err2 = document.getElementById('err2');
+  if (!hasSigned) { err2.classList.add('visible'); return; }
+  err2.classList.remove('visible');
+
+  const btn = document.getElementById('btnEnviar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Guardando firma…';
+
+  const sigDataUrl = canvas.toDataURL('image/png');
+  const payload = {
+    rol: document.getElementById('rol').value,
+    nombre: document.getElementById('nombre').value.trim(),
+    correo: document.getElementById('correo').value.trim(),
+    codigoActa: document.getElementById('codigoActa').value.trim(),
+    firma: sigDataUrl,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {
+    // no-cors always throws on response read, this is expected
+  }
+
+  // Show success
+  document.getElementById('dot2').classList.remove('active');
+  document.getElementById('dot2').classList.add('done');
+  document.getElementById('dot3').classList.add('active');
+  document.getElementById('progressFill').style.width = '100%';
+
+  document.getElementById('step2').classList.remove('active');
+  document.getElementById('step3').classList.add('active');
+}
+</script>
+</body>
+</html>
