@@ -6,10 +6,10 @@
 // ID de la carpeta en Google Drive donde se guardarán las firmas
 // Ej: en la URL https://drive.google.com/drive/folders/1ABC...XYZ
 // el ID es: 1ABC...XYZ
-const CARPETA_FIRMAS_ID = "PON_AQUI_EL_ID_DE_TU_CARPETA_FIRMAS";
+const CARPETA_FIRMAS_ID = "1Dkg3kbVYET0qkVgpGZ-q6kxIUiiJotok?hl=es";
 
 // ID del Google Sheet donde se registrará el estado de firmas
-const SHEET_CONTROL_ID = "PON_AQUI_EL_ID_DE_TU_HOJA_DE_CONTROL";
+const SHEET_CONTROL_ID = "16UPvkRyG17KCgjGcgEropaUXRW11lgSzOBPviBQg6Wo";
 
 // Nombre de la hoja dentro del Sheet de control
 const NOMBRE_HOJA_CONTROL = "Control de Firmas";
