@@ -1,143 +1,102 @@
-// ============================================================
-// GOOGLE APPS SCRIPT — Receptor de Firmas Digitales
-// Pega este código en script.google.com (nuevo proyecto)
-// ============================================================
+function crearEstructuraEstudiante(codigoActa, nombreEstudiante,
+                                   correoEstudiante, correoTutor, correoProfesor) {
 
-// ID de la carpeta en Google Drive donde se guardarán las firmas
-// Ej: en la URL https://drive.google.com/drive/folders/1ABC...XYZ
-// el ID es: 1ABC...XYZ
-const CARPETA_FIRMAS_ID = "1Dkg3kbVYET0qkVgpGZ-q6kxIUiiJotok?hl=es";
+  // 1. Crear carpeta del estudiante dentro de "Fase Inicial"
+  const carpetaFase       = DriveApp.getFolderById(CARPETA_FASE_ID);
+  const carpetaEstudiante = carpetaFase.createFolder(nombreEstudiante);
+  const idCarpeta         = carpetaEstudiante.getId();
 
-// ID del Google Sheet donde se registrará el estado de firmas
-const SHEET_CONTROL_ID = "16UPvkRyG17KCgjGcgEropaUXRW11lgSzOBPviBQg6Wo";
+  // 2. Copiar la plantilla dentro de la carpeta del estudiante
+  const archivoCopia = DriveApp.getFileById(PLANTILLA_ID).makeCopy(
+    `Acta de Coformación - ${nombreEstudiante}`,
+    carpetaEstudiante
+  );
+  const idSheets = archivoCopia.getId();
 
-// Nombre de la hoja dentro del Sheet de control
-const NOMBRE_HOJA_CONTROL = "Control de Firmas";
-
-// ─────────────────────────────────────────────────────────────
-// PUNTO DE ENTRADA — recibe el POST desde la página web
-// ─────────────────────────────────────────────────────────────
-function doPost(e) {
+  // 3. Llenar datos del estudiante en la copia recién creada
   try {
-    const data = JSON.parse(e.postData.contents);
+    const ssResp   = SpreadsheetApp.openById(SHEET_RESPUESTAS_ID);
+    const hojaResp = ssResp.getSheets()[0];
+    const fila     = hojaResp.getRange(Number(codigoActa), 1, 1, 26).getValues()[0];
 
-    const rol         = data.rol;         // "estudiante" | "tutor" | "profesor"
-    const nombre      = data.nombre;
-    const correo      = data.correo;
-    const codigoActa  = data.codigoActa;  // identificador único del acta
-    const firmaBase64 = data.firma;       // "data:image/png;base64,..."
-    const timestamp   = data.timestamp;
-
-    // 1. Guardar imagen de firma en Drive
-    const nombreArchivo = `firma_${codigoActa}_${rol}.png`;
-    const base64Data    = firmaBase64.replace(/^data:image\/png;base64,/, "");
-    const blob          = Utilities.newBlob(
-      Utilities.base64Decode(base64Data), "image/png", nombreArchivo
-    );
-    const carpeta       = DriveApp.getFolderById(CARPETA_FIRMAS_ID);
-    const archivo       = carpeta.createFile(blob);
-    const fileId        = archivo.getId();
-
-    // 2. Registrar en hoja de control
-    registrarFirma(codigoActa, rol, nombre, correo, fileId, timestamp);
-
-    // 3. Verificar si ya firmaron todos → disparar Make si corresponde
-    verificarCompletitud(codigoActa);
-
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: "ok", fileId: fileId }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: "error", message: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Registra la firma en la hoja de control
-// ─────────────────────────────────────────────────────────────
-function registrarFirma(codigoActa, rol, nombre, correo, fileId, timestamp) {
-  const ss    = SpreadsheetApp.openById(SHEET_CONTROL_ID);
-  let sheet   = ss.getSheetByName(NOMBRE_HOJA_CONTROL);
-
-  // Crear hoja si no existe
-  if (!sheet) {
-    sheet = ss.insertSheet(NOMBRE_HOJA_CONTROL);
-    sheet.appendRow([
-      "Código Acta", "Rol", "Nombre", "Correo",
-      "File ID Firma", "Timestamp", "Completado"
-    ]);
-  }
-
-  // Buscar si ya existe una fila para este acta+rol (actualizar en lugar de duplicar)
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === codigoActa && data[i][1] === rol) {
-      sheet.getRange(i + 1, 5).setValue(fileId);
-      sheet.getRange(i + 1, 6).setValue(timestamp);
-      return;
-    }
-  }
-
-  // Si no existe, agregar nueva fila
-  sheet.appendRow([codigoActa, rol, nombre, correo, fileId, timestamp, "NO"]);
-}
-
-// ─────────────────────────────────────────────────────────────
-// Verifica si las 3 firmas están listas y avisa a Make
-// ─────────────────────────────────────────────────────────────
-function verificarCompletitud(codigoActa) {
-  const ss    = SpreadsheetApp.openById(SHEET_CONTROL_ID);
-  const sheet = ss.getSheetByName(NOMBRE_HOJA_CONTROL);
-  if (!sheet) return;
-
-  const data = sheet.getDataRange().getValues();
-  const roles = ["estudiante", "tutor", "profesor"];
-  const firmasActa = {};
-
-  // Recopilar firmas de este acta
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === codigoActa && data[i][4]) {
-      firmasActa[data[i][1]] = data[i][4]; // rol → fileId
-    }
-  }
-
-  const todasListas = roles.every(r => firmasActa[r]);
-
-  if (todasListas) {
-    // Marcar como completado en la hoja
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === codigoActa) {
-        sheet.getRange(i + 1, 7).setValue("SI");
-      }
-    }
-
-    // ── Disparar el webhook de Make ──────────────────────────
-    // Pega aquí la URL del webhook de Make (módulo "Watch" o "Webhook")
-    const MAKE_WEBHOOK_URL = "PON_AQUI_TU_WEBHOOK_URL_DE_MAKE";
-
-    const payload = {
-      codigoActa:      codigoActa,
-      firmaEstudiante: firmasActa["estudiante"],
-      firmaTutor:      firmasActa["tutor"],
-      firmaProfesor:   firmasActa["profesor"]
+    const datos = {
+      nombreEstudiante : fila[1],  // B
+      documento        : fila[2],  // C
+      programa         : fila[3],  // D
+      semestre         : fila[4],  // E
+      correoEstudiante : fila[5],  // F
+      razonSocial      : fila[8],  // I
+      nombreTutor      : fila[11], // L
+      correoTutor      : fila[12], // M
+      nombreProfesor   : fila[14], // O
+      correoProfesor   : fila[15], // P
     };
 
-    UrlFetchApp.fetch(MAKE_WEBHOOK_URL, {
-      method:      "post",
-      contentType: "application/json",
-      payload:     JSON.stringify(payload)
-    });
-  }
-}
+    const ss         = SpreadsheetApp.openById(idSheets);
+    const actaInicio = ss.getSheetByName("Acta de Inicio");
 
-// ─────────────────────────────────────────────────────────────
-// GET para verificar que el script está activo (opcional)
-// ─────────────────────────────────────────────────────────────
-function doGet() {
-  return ContentService
-    .createTextOutput("✅ Script de firmas activo")
-    .setMimeType(ContentService.MimeType.TEXT);
+    if (actaInicio) {
+      actaInicio.getRange("A6").setValue(datos.nombreEstudiante);
+      actaInicio.getRange("C6").setValue(datos.documento);
+      actaInicio.getRange("D6").setValue(datos.programa);
+      actaInicio.getRange("H6").setValue(datos.semestre);
+      actaInicio.getRange("A9").setValue(datos.razonSocial);
+      actaInicio.getRange("D9").setValue(datos.nombreTutor);
+      actaInicio.getRange("G9").setValue(datos.nombreProfesor);
+      actaInicio.getRange("E15").setValue(datos.correoEstudiante);
+      actaInicio.getRange("E16").setValue(datos.correoTutor);
+      actaInicio.getRange("E17").setValue(datos.correoProfesor);
+    }
+
+    // Llenar también las otras hojas que tienen el encabezado del estudiante
+    ["Acta de Seguimiento", "Acta de Cierre"].forEach(nombreHoja => {
+      const hoja = ss.getSheetByName(nombreHoja);
+      if (hoja) {
+        hoja.getRange("A6").setValue(datos.nombreEstudiante);
+        hoja.getRange("C6").setValue(datos.documento);
+        hoja.getRange("D6").setValue(datos.programa);
+        hoja.getRange("H6").setValue(datos.semestre);
+        hoja.getRange("A9").setValue(datos.razonSocial);
+        hoja.getRange("D9").setValue(datos.nombreTutor);
+        hoja.getRange("G9").setValue(datos.nombreProfesor);
+      }
+    });
+
+    SpreadsheetApp.flush();
+
+  } catch (err) {
+    Logger.log("Error llenando datos en la copia: " + err.message);
+  }
+
+  // 4. Compartir carpeta — en try-catch para que no bloquee el return
+  try {
+    if (correoEstudiante && correoEstudiante.includes("@")) {
+      carpetaEstudiante.addEditor(correoEstudiante);
+    }
+    if (correoTutor && correoTutor.includes("@")) {
+      carpetaEstudiante.addViewer(correoTutor);
+    }
+    if (correoProfesor && correoProfesor.includes("@")) {
+      carpetaEstudiante.addViewer(correoProfesor);
+    }
+  } catch (err) {
+    Logger.log("Error compartiendo carpeta: " + err.message);
+  }
+
+  // 5. Registrar en hoja "Registro de Actas"
+  try {
+    registrarEnHojaMapeo(codigoActa, nombreEstudiante, idCarpeta,
+                         idSheets, correoEstudiante, correoTutor, correoProfesor);
+  } catch (err) {
+    Logger.log("Error registrando en hoja mapeo: " + err.message);
+  }
+
+  // 6. Devolver los links siempre, aunque algún paso anterior haya fallado
+  return {
+    status      : "ok",
+    idCarpeta   : idCarpeta,
+    idSheets    : idSheets,
+    linkCarpeta : `https://drive.google.com/drive/folders/${idCarpeta}`,
+    linkSheets  : `https://docs.google.com/spreadsheets/d/${idSheets}/edit`,
+  };
 }
